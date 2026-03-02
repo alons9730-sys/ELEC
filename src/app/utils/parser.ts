@@ -51,13 +51,13 @@ export interface ParseResult {
 
 // ─── 유틸 함수 ─────────────────────────────────────────────
 
-/** 괄호 안 내용 추출 (이름과 부가설명 분리) */
+/** 괄호 안 내용 추출 (모든 괄호 그룹을 합쳐서 반환) */
 function extractParenContent(str: string): { outside: string; inside: string } {
-  const match = str.match(/\(([^)]+)\)/);
-  if (!match) return { outside: str, inside: '' };
+  const matches = [...str.matchAll(/\(([^)]+)\)/g)];
+  if (matches.length === 0) return { outside: str, inside: '' };
   return {
     outside: str.replace(/\([^)]*\)/g, '').trim(),
-    inside: match[1].trim(),
+    inside: matches.map(m => m[1].trim()).join(', '),
   };
 }
 
