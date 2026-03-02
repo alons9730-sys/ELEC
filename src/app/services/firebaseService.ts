@@ -118,6 +118,7 @@ export async function addTasksBatch(eventId: string, tasks: Task[]): Promise<voi
             time: task.time,
             status: task.status,
             originalText: task.originalText ?? '',
+            memo: task.memo ?? '',
             createdAt: Timestamp.now(),
         });
     }
@@ -153,6 +154,73 @@ export async function updateTaskDoc(
     data: Partial<Omit<Task, 'id'>>,
 ): Promise<void> {
     await updateDoc(doc(db, 'events', eventId, 'tasks', id), data);
+}
+
+// ─── Timeline (타임라인 개요) ──────────────────────────────
+
+export interface TimelineDoc {
+    id: string;
+    time: string;
+    location: string;
+    title: string;
+    detail: string;
+    assignedTaskIds: string[];   // 연결된 task id 목록
+    order: number;               // 정렬 순서
+}
+
+function timelineCol(eventId: string) {
+    return collection(db, 'events', eventId, 'timeline');
+}
+
+/** 타임라인 항목 일괄 등록 */
+export async function addTimelineItemsBatch(
+    eventId: string,
+    items: { id: string; time: string; location: string; title: string; detail: string; assignedTaskIds: string[]; order: number }[],
+): Promise<void> {
+    const batch = writeBatch(db);
+    for (const item of items) {
+        const ref = doc(timelineCol(eventId), item.id);
+        batch.set(ref, {
+            time: item.time,
+            location: item.location,
+            title: item.title,
+            detail: item.detail,
+            assignedTaskIds: item.assignedTaskIds,
+            order: item.order,
+            createdAt: Timestamp.now(),
+        });
+    }
+    await batch.commit();
+}
+
+/** 타임라인 실시간 구독 */
+export function subscribeToTimeline(
+    eventId: string,
+    onData: (items: TimelineDoc[]) => void,
+    onError?: (error: Error) => void,
+): Unsubscribe {
+    return onSnapshot(
+        query(timelineCol(eventId), orderBy('order', 'asc')),
+        (snapshot) => {
+            const items: TimelineDoc[] = snapshot.docs.map((d) => ({
+                ...(d.data() as Omit<TimelineDoc, 'id'>),
+                id: d.id,
+            }));
+            onData(items);
+        },
+        (error) => {
+            console.error('Timeline 구독 에러:', error);
+            onError?.(error);
+        },
+    );
+}
+
+/** 타임라인 전체 삭제 */
+export async function clearTimeline(eventId: string): Promise<void> {
+    const snapshot = await getDocs(timelineCol(eventId));
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
 }
 
 // ─── Payments (행사비 납부) ───────────────────────────────

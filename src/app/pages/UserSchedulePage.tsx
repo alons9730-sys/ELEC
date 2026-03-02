@@ -250,6 +250,12 @@ export const UserSchedulePage = () => {
                         </span>
                         <span className="text-[11px] font-mono text-zinc-500">{task.time}</span>
                       </div>
+                      {task.memo && (
+                        <div className="mt-1 text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5 flex items-start gap-1.5 leading-snug">
+                          <span className="shrink-0 mt-0.5">💡</span>
+                          <span>{task.memo}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* 완료 토글 */}

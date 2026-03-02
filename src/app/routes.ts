@@ -7,6 +7,7 @@ import { EventListPage } from "./pages/EventListPage";
 import { EventWrapper } from "./components/EventWrapper";
 import { PaymentListPage } from "./pages/PaymentListPage";
 import { PaymentDetailPage } from "./pages/PaymentDetailPage";
+import { TimelinePage } from "./pages/TimelinePage";
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "admin", Component: AdminPage },
           { path: "schedule", Component: UserSchedulePage },
+          { path: "timeline", Component: TimelinePage },
         ],
       },
       { path: "payments", Component: PaymentListPage },

@@ -26,6 +26,7 @@ export interface Task {
   time: string;
   status: 'pending' | 'done';
   originalText?: string;
+  memo?: string;
 }
 
 interface ScheduleContextType {

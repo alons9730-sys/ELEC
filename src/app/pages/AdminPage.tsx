@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 import { useSchedule } from '../store/ScheduleContext';
 import { AdminGuard } from '../components/AdminGuard';
-import { updateEventTitle, subscribeToEvents, type EventDoc } from '../services/firebaseService';
-import { parseScheduleText, Task } from '../utils/parser';
+import { updateEventTitle, subscribeToEvents, addTimelineItemsBatch, clearTimeline, type EventDoc } from '../services/firebaseService';
+import { parseScheduleFull, type Task, type TimelineItem } from '../utils/parser';
 import {
   Upload, FileText, Zap, RefreshCw, CheckCircle2, AlertCircle,
   Trash2, Calendar as CalendarIcon, Users, X, Info, FileSpreadsheet,
@@ -43,6 +43,7 @@ function getAvatarColor(id: string): string {
 
 export const AdminPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const { users, tasks, addTasks, removeTask, updateTask, clearTasks } = useSchedule();
   const [rawText, setRawText] = useState('');
   const [analyzedTasks, setAnalyzedTasks] = useState<Task[]>([]);
@@ -53,9 +54,12 @@ export const AdminPage = () => {
   const [eventTitle, setEventTitleLocal] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 파서 결과
+  const [parsedTimeline, setParsedTimeline] = useState<TimelineItem[]>([]);
+
   // 인라인 편집 상태
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ title: '', time: '', category: '' });
+  const [editForm, setEditForm] = useState({ title: '', time: '', category: '', memo: '' });
 
   // 이벤트 제목 실시간 구독
   useEffect(() => {
@@ -111,11 +115,14 @@ export const AdminPage = () => {
     }
     setIsAnalyzing(true);
     setTimeout(() => {
-      const results = parseScheduleText(rawText, users);
-      setAnalyzedTasks(results);
+      const result = parseScheduleFull(rawText, users);
+      setAnalyzedTasks(result.tasks);
+      setParsedTimeline(result.timeline);
       setIsAnalyzing(false);
-      if (results.length > 0) {
-        toast.success(`✅ ${results.length}개의 업무가 분석되었습니다.`);
+      if (result.tasks.length > 0) {
+        toast.success(`✅ ${result.tasks.length}개의 업무 + ${result.timeline.length}개의 타임라인이 분석되었습니다.`);
+      } else if (result.timeline.length > 0) {
+        toast.success(`📋 ${result.timeline.length}개의 타임라인 항목이 분석되었습니다. (배정 인원 없음)`);
       } else {
         toast.info('매칭된 인원이 없습니다. 형식과 명단을 확인해주세요.');
       }
@@ -123,10 +130,32 @@ export const AdminPage = () => {
   };
 
   // ─── 확정 ────────────────────────────────────────────────
-  const confirmTasks = () => {
+  const confirmTasks = async () => {
     addTasks(analyzedTasks);
-    toast.success(`🚀 ${analyzedTasks.length}개의 업무가 등록되었습니다.`);
+    // 타임라인도 함께 저장
+    if (eventId && parsedTimeline.length > 0) {
+      try {
+        await clearTimeline(eventId);
+        const tlItems = parsedTimeline.map((tl, idx) => ({
+          id: tl.id,
+          time: tl.time,
+          location: tl.location,
+          title: tl.title,
+          detail: tl.detail,
+          assignedTaskIds: tl.assignedTasks.map(t => t.id),
+          order: idx,
+        }));
+        await addTimelineItemsBatch(eventId, tlItems);
+        toast.success(`🚀 ${analyzedTasks.length}개 업무 + ${parsedTimeline.length}개 타임라인 등록 완료!`);
+      } catch (err) {
+        console.error(err);
+        toast.success(`🚀 ${analyzedTasks.length}개의 업무가 등록되었습니다.`);
+      }
+    } else {
+      toast.success(`🚀 ${analyzedTasks.length}개의 업무가 등록되었습니다.`);
+    }
     setAnalyzedTasks([]);
+    setParsedTimeline([]);
     setRawText('');
   };
 
@@ -439,6 +468,12 @@ export const AdminPage = () => {
                                       className="w-full bg-white/5 border border-indigo-500/30 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
                                       placeholder="업무 제목"
                                     />
+                                    <input
+                                      value={editForm.memo}
+                                      onChange={e => setEditForm(f => ({ ...f, memo: e.target.value }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                                      placeholder="특이사항 메모 (선택)"
+                                    />
                                     <div className="flex gap-2">
                                       <input
                                         value={editForm.time}
@@ -486,6 +521,11 @@ export const AdminPage = () => {
                                         {task.category}
                                       </span>
                                     </div>
+                                    {task.memo && (
+                                      <div className="mt-2 text-xs text-amber-200/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-2 py-1.5 inline-block">
+                                        💡 {task.memo}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -494,7 +534,7 @@ export const AdminPage = () => {
                                   <button
                                     onClick={() => {
                                       setEditingTaskId(task.id);
-                                      setEditForm({ title: task.title, time: task.time, category: task.category });
+                                      setEditForm({ title: task.title, time: task.time, category: task.category, memo: task.memo || '' });
                                     }}
                                     className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-600 hover:text-indigo-400 transition-all"
                                   >

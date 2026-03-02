@@ -69,7 +69,7 @@ export const PaymentDetailPage = () => {
     const handleAddPeople = async () => {
         if (!paymentId || !namesInput.trim()) return;
         const names = namesInput
-            .split(/[,\n\r\t]+/)
+            .split(/[,\s]+/)
             .map(n => n.trim())
             .filter(n => n.length > 0);
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Calendar, Plus, Trash2, ArrowRight, Loader2, Lock } from 'lucide-react';
+import { Calendar, Plus, Trash2, ArrowRight, Loader2, Lock, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -122,6 +122,16 @@ export const EventListPage = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/events/${event.id}/timeline`);
+                                        }}
+                                        className="px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-[11px] font-bold text-violet-400 hover:text-violet-300 hover:bg-violet-500/20 transition-colors flex items-center gap-1"
+                                    >
+                                        <ClipboardList size={12} />
+                                        타임라인
+                                    </button>
                                     {adminAuth && (
                                         <>
                                             <button
