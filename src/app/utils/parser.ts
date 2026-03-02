@@ -351,11 +351,10 @@ export const parseScheduleFull = (text: string, users: User[]): ParseResult => {
       continue;
     }
 
-    // ── Step 6: Bullet 줄 → activeUsers 에게 업무 할당 ──
-    if (isBulletLine(line) && activeUsers.length > 0) {
+    // ── Step 6 & 7: Bullet 줄이 아니더라도 activeUsers가 있으면 업무로 간주 (묵시적 업무) ──
+    // 예: "10:30 - 11:30 준비" -> 시간 + 내용만 있는 경우
+    if (activeUsers.length > 0 && !isMemoLine(line)) {
       const bulletContent = stripBullet(line);
-      if (!bulletContent) continue;
-
       // bullet 내에서 시간 추출
       const { time: bulletTime, rest: bulletRest } = extractAndRemoveTime(bulletContent);
       if (bulletTime) currentTime = bulletTime;
@@ -368,30 +367,47 @@ export const parseScheduleFull = (text: string, users: User[]): ParseResult => {
         .replace(/늦어도\s*/, '')
         .trim() || bulletContent;
 
-      const category = detectCategory(taskTitle);
-      const newTasks: Task[] = [];
+      if (taskTitle) {
+        const category = detectCategory(taskTitle);
+        const newTasks: Task[] = [];
 
-      for (const user of activeUsers) {
-        const t: Task = {
-          id: crypto.randomUUID(),
-          userId: user.id,
-          userName: user.name,
-          title: taskTitle,
-          time: currentTime || '미정',
-          category,
-          status: 'pending',
-          originalText: rawLine,
-          memo: taskMemo || undefined,
-        };
-        tasks.push(t);
-        newTasks.push(t);
+        for (const user of activeUsers) {
+          const t: Task = {
+            id: crypto.randomUUID(),
+            userId: user.id,
+            userName: user.name,
+            title: taskTitle,
+            time: currentTime || '미정',
+            category,
+            status: 'pending',
+            originalText: rawLine,
+            memo: taskMemo || undefined,
+          };
+          tasks.push(t);
+          newTasks.push(t);
+        }
+        lastTasks = newTasks;
+
+        // "10:30 - 11:30 운영" 처럼 타임라인 항목도 겸하는 경우 타임라인에 추가
+        if (currentTime) {
+          const exists = timelineItems.find(t => t.time === currentTime && t.title === taskTitle);
+          if (!exists) {
+            timelineItems.push({
+              id: crypto.randomUUID(),
+              time: currentTime,
+              location: currentLocation,
+              title: taskTitle,
+              detail: '',
+              assignedTasks: [],
+            });
+          }
+        }
+        continue;
       }
-      lastTasks = newTasks;
-      continue;
     }
 
-    // ── Step 7: 타임라인 항목 수집 ──
-    // 시간이 있는 줄이면서 위의 조건에 해당하지 않는 줄 → 타임라인
+    // ── Step 8: 타임라인 항목 수집 (activeUsers가 없는 단독 줄) ──
+    // 시간이 있는 줄이면서 위의 조건에 해당하지 않는 줄 → 타임라인 단독 항목
     if (lineTime || currentTime) {
       const content = afterTimeRemoval || line;
       if (content && content.length > 1) {
