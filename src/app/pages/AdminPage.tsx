@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useSchedule } from '../store/ScheduleContext';
 import { AdminGuard } from '../components/AdminGuard';
-import { updateEventTitle, subscribeToEvents, addTimelineItemsBatch, clearTimeline, type EventDoc } from '../services/firebaseService';
+import { updateEventTitle, updateEventNotice, subscribeToEvents, addTimelineItemsBatch, clearTimeline, type EventDoc } from '../services/firebaseService';
 import { parseScheduleFull, type Task, type TimelineItem } from '../utils/parser';
 import {
   Upload, FileText, Zap, RefreshCw, CheckCircle2, AlertCircle,
   Trash2, Calendar as CalendarIcon, Users, X, Info, FileSpreadsheet,
-  ChevronDown, ChevronUp, Pencil, Check
+  ChevronDown, ChevronUp, Pencil, Check, Megaphone, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -57,15 +57,28 @@ export const AdminPage = () => {
   // 파서 결과
   const [parsedTimeline, setParsedTimeline] = useState<TimelineItem[]>([]);
 
+  // 공지사항
+  const [noticeText, setNoticeText] = useState('');
+  const [noticeSaved, setNoticeSaved] = useState(true);
+
   // 인라인 편집 상태
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', time: '', category: '', memo: '' });
 
-  // 이벤트 제목 실시간 구독
+  // 이벤트 제목 + 공지사항 실시간 구독
   useEffect(() => {
     const unsub = subscribeToEvents((events) => {
       const ev = events.find(e => e.id === eventId);
-      if (ev) { setEventTitleLocal(ev.title); setTitleInput(ev.title); }
+      if (ev) {
+        setEventTitleLocal(ev.title);
+        setTitleInput(ev.title);
+        // notice 필드가 있으면 불러오기
+        const evData = ev as any;
+        if (evData.notice !== undefined) {
+          setNoticeText(evData.notice);
+          setNoticeSaved(true);
+        }
+      }
     });
     return () => unsub();
   }, [eventId]);
@@ -167,6 +180,14 @@ export const AdminPage = () => {
     if (titleInput.trim()) toast.success('이벤트 제목이 저장되었습니다.');
   };
 
+  // ─── 공지사항 저장 ──────────────────────────────────────
+  const saveNotice = () => {
+    if (!eventId) return;
+    updateEventNotice(eventId, noticeText).catch(console.error);
+    setNoticeSaved(true);
+    toast.success('📢 공지사항이 저장되었습니다.');
+  };
+
   // 분석 결과 기준 인원별 통계
   const userStats = analyzedTasks.reduce<Record<string, number>>((acc, t) => {
     acc[t.userName] = (acc[t.userName] || 0) + 1;
@@ -224,6 +245,35 @@ export const AdminPage = () => {
               </button>
             </div>
           )}
+        </div>
+
+        {/* ─── 공지사항 ──────────────────────────────────── */}
+        <div className="p-4 bg-white/[0.03] border border-white/8 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Megaphone size={16} className="text-amber-400" />
+              <span className="text-sm font-bold text-white">공지사항</span>
+              <span className="text-[10px] text-zinc-600">사용자 스케줄 상단에 표시됩니다</span>
+            </div>
+            <button
+              onClick={saveNotice}
+              disabled={noticeSaved}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${noticeSaved
+                  ? 'bg-zinc-800 text-zinc-600 cursor-default'
+                  : 'bg-amber-600 text-white hover:bg-amber-500'
+                }`}
+            >
+              <Save size={12} />
+              {noticeSaved ? '저장됨' : '저장'}
+            </button>
+          </div>
+          <textarea
+            value={noticeText}
+            onChange={e => { setNoticeText(e.target.value); setNoticeSaved(false); }}
+            placeholder={"공지사항을 입력하세요...\n예: [공통 매뉴얼]\n- 11:30 - 16:30 부스 운영 지침\n>> 1. 부스 오면 이름 물어보고 과학생회비 납입 확인"}
+            rows={5}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-amber-500/50 transition-all resize-y font-mono leading-relaxed"
+          />
         </div>
 
         {/* ─── 메인 그리드 ─────────────────────────────────── */}
