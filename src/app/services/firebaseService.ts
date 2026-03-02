@@ -77,6 +77,11 @@ export async function updateEventTitle(eventId: string, title: string): Promise<
     await updateDoc(doc(db, 'events', eventId), { title });
 }
 
+/** 이벤트 공지사항 수정 */
+export async function updateEventNotice(eventId: string, notice: string): Promise<void> {
+    await updateDoc(doc(db, 'events', eventId), { notice });
+}
+
 // ─── Tasks (이벤트 하위) ──────────────────────────────────
 
 function tasksCol(eventId: string) {

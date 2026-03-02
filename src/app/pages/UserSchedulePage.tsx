@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { useSchedule } from '../store/ScheduleContext';
-import { Calendar, CheckCircle2, Search, ArrowLeft, Clock, Tag, ChevronRight, Loader2 } from 'lucide-react';
+import { Calendar, CheckCircle2, Search, ArrowLeft, Clock, Tag, ChevronRight, ChevronDown, ChevronUp, Loader2, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { subscribeToEvents } from '../services/firebaseService';
@@ -46,12 +46,18 @@ export const UserSchedulePage = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [eventTitle, setEventTitle] = useState('');
+  const [eventNotice, setEventNotice] = useState('');
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
-  // 이벤트 제목 실시간 구독
+  // 이벤트 제목 + 공지사항 실시간 구독
   useEffect(() => {
     const unsub = subscribeToEvents((events) => {
       const ev = events.find(e => e.id === eventId);
-      if (ev) setEventTitle(ev.title);
+      if (ev) {
+        setEventTitle(ev.title);
+        const evData = ev as any;
+        if (evData.notice !== undefined) setEventNotice(evData.notice);
+      }
     });
     return () => unsub();
   }, [eventId]);
@@ -202,6 +208,47 @@ export const UserSchedulePage = () => {
           <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">배정 업무</p>
         </div>
       </motion.div>
+
+      {/* 공지사항 배너 */}
+      {eventNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <button
+            onClick={() => setNoticeOpen(!noticeOpen)}
+            className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 ${noticeOpen
+                ? 'bg-amber-500/5 border-amber-500/20'
+                : 'bg-amber-500/5 border-amber-500/15 hover:border-amber-500/30'
+              }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Megaphone size={16} className="text-amber-400" />
+                <span className="text-sm font-bold text-amber-300">공지사항</span>
+                <span className="text-[10px] text-amber-600">클릭하여 확인</span>
+              </div>
+              {noticeOpen ? <ChevronUp size={14} className="text-amber-500" /> : <ChevronDown size={14} className="text-amber-500" />}
+            </div>
+          </button>
+          <AnimatePresence>
+            {noticeOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-1 p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl">
+                  <pre className="text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed">{eventNotice}</pre>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
       {/* 업무 목록 */}
       <div className="space-y-3">
