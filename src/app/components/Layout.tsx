@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { LayoutDashboard, Users, CalendarDays, Zap, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, Banknote, Zap, Menu, X } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 
 export const Layout = () => {
@@ -49,6 +49,10 @@ export const Layout = () => {
             <CalendarDays size={18} />
             <span className="font-medium">행사 목록</span>
           </NavLink>
+          <NavLink to="/payments" className={sidebarNavClass}>
+            <Banknote size={18} />
+            <span className="font-medium">납부 확인</span>
+          </NavLink>
         </nav>
 
         <div className="p-4 border-t border-white/5">
@@ -94,6 +98,10 @@ export const Layout = () => {
         <NavLink to="/events" className={bottomNavClass}>
           <CalendarDays size={20} />
           <span>행사</span>
+        </NavLink>
+        <NavLink to="/payments" className={bottomNavClass}>
+          <Banknote size={20} />
+          <span>납부</span>
         </NavLink>
       </nav>
     </div>

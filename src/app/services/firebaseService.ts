@@ -154,3 +154,95 @@ export async function updateTaskDoc(
 ): Promise<void> {
     await updateDoc(doc(db, 'events', eventId, 'tasks', id), data);
 }
+
+// ─── Payments (행사비 납부) ───────────────────────────────
+
+export interface PaymentDoc {
+    id: string;
+    title: string;
+    createdAt: Timestamp;
+}
+
+export interface PaymentPerson {
+    id: string;
+    name: string;
+}
+
+/** 납부 이벤트 목록 실시간 구독 */
+export function subscribeToPayments(
+    onData: (payments: PaymentDoc[]) => void,
+    onError?: (error: Error) => void,
+): Unsubscribe {
+    const q = query(collection(db, 'payments'), orderBy('createdAt', 'desc'));
+    return onSnapshot(
+        q,
+        (snapshot) => {
+            const payments: PaymentDoc[] = snapshot.docs.map((d) => ({
+                ...(d.data() as Omit<PaymentDoc, 'id'>),
+                id: d.id,
+            }));
+            onData(payments);
+        },
+        (error) => {
+            console.error('Payments 구독 에러:', error);
+            onError?.(error);
+        },
+    );
+}
+
+/** 납부 이벤트 생성 */
+export async function createPayment(title: string): Promise<string> {
+    const ref = await addDoc(collection(db, 'payments'), {
+        title,
+        createdAt: Timestamp.now(),
+    });
+    return ref.id;
+}
+
+/** 납부 이벤트 삭제 (하위 people도 삭제) */
+export async function deletePayment(paymentId: string): Promise<void> {
+    const peopleSnap = await getDocs(collection(db, 'payments', paymentId, 'people'));
+    const batch = writeBatch(db);
+    peopleSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(doc(db, 'payments', paymentId));
+    await batch.commit();
+}
+
+/** 납부 대상 인원 실시간 구독 */
+export function subscribeToPaymentPeople(
+    paymentId: string,
+    onData: (people: PaymentPerson[]) => void,
+    onError?: (error: Error) => void,
+): Unsubscribe {
+    return onSnapshot(
+        collection(db, 'payments', paymentId, 'people'),
+        (snapshot) => {
+            const people: PaymentPerson[] = snapshot.docs.map((d) => ({
+                ...(d.data() as Omit<PaymentPerson, 'id'>),
+                id: d.id,
+            }));
+            // 이름순 정렬
+            people.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+            onData(people);
+        },
+        (error) => {
+            console.error('PaymentPeople 구독 에러:', error);
+            onError?.(error);
+        },
+    );
+}
+
+/** 납부 대상 인원 일괄 추가 */
+export async function addPaymentPeopleBatch(paymentId: string, names: string[]): Promise<void> {
+    const batch = writeBatch(db);
+    for (const name of names) {
+        const ref = doc(collection(db, 'payments', paymentId, 'people'));
+        batch.set(ref, { name: name.trim() });
+    }
+    await batch.commit();
+}
+
+/** 납부 완료 (이름 삭제) */
+export async function removePaymentPerson(paymentId: string, personId: string): Promise<void> {
+    await deleteDoc(doc(db, 'payments', paymentId, 'people', personId));
+}

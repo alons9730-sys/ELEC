@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { CalendarDays, Zap, ArrowRight } from 'lucide-react';
+import { CalendarDays, Banknote, Zap, ArrowRight } from 'lucide-react';
 
 export const Home = () => {
   const navigate = useNavigate();
@@ -25,6 +25,7 @@ export const Home = () => {
 
       {/* 메인 액션 버튼 */}
       <div className="flex flex-col items-center gap-4 w-full max-w-2xl">
+        {/* 행사 목록 */}
         <button
           onClick={() => navigate('/events')}
           className="w-full md:w-2/3 group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/25 p-8 text-left hover:scale-[1.02] transition-all duration-300"
@@ -39,6 +40,26 @@ export const Home = () => {
               <p className="text-sm text-emerald-200/50 leading-relaxed">등록된 행사를 선택하여 스케줄을 조회합니다</p>
             </div>
             <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-emerald-400 group-hover:translate-x-1.5 transition-transform">
+              입장하기 <ArrowRight size={14} />
+            </div>
+          </div>
+        </button>
+
+        {/* 행사비 납부 확인 */}
+        <button
+          onClick={() => navigate('/payments')}
+          className="w-full md:w-2/3 group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-600/20 to-orange-600/20 border border-amber-500/25 p-8 text-left hover:scale-[1.02] transition-all duration-300"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10 flex flex-col gap-6">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
+              <Banknote size={24} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-amber-300 transition-colors">행사비 납부 확인</h3>
+              <p className="text-sm text-amber-200/50 leading-relaxed">납부 대상 인원을 확인하고 납부를 처리합니다</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-amber-400 group-hover:translate-x-1.5 transition-transform">
               입장하기 <ArrowRight size={14} />
             </div>
           </div>
